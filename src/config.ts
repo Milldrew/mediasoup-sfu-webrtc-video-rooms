@@ -1,51 +1,50 @@
 // src/config.ts
-import * as os from 'os';
-import { RtpCodecCapability } from 'mediasoup/node/lib/RtpParameters';
-import { TransportListenIp } from 'mediasoup/node/lib/Transport';
+import * as os from 'os'
+import { TransportListenInfo, RtpCodecCapability } from 'mediasoup/node/lib/types'
 
-const ifaces = os.networkInterfaces();
+const ifaces = os.networkInterfaces()
 
 const getLocalIp = (): string => {
-  let localIp = '127.0.0.1';
+  let localIp = '127.0.0.1'
   Object.keys(ifaces).forEach((ifname) => {
-    const ifaceList = ifaces[ifname];
-    if (!ifaceList) return;
-    
+    const ifaceList = ifaces[ifname]
+    if (!ifaceList) return
+
     for (const iface of ifaceList) {
       // Ignore IPv6 and 127.0.0.1
       if (iface.family !== 'IPv4' || iface.internal !== false) {
-        continue;
+        continue
       }
       // Set the local ip to the first IPv4 address found and exit the loop
-      localIp = iface.address;
-      return;
+      localIp = iface.address
+      return
     }
-  });
-  return localIp;
-};
+  })
+  return localIp
+}
 
 interface Config {
-  listenIp: string;
-  listenPort: number;
-  sslCrt: string;
-  sslKey: string;
+  listenIp: string
+  listenPort: number
+  sslCrt: string
+  sslKey: string
   mediasoup: {
-    numWorkers: number;
+    numWorkers: number
     worker: {
-      rtcMinPort: number;
-      rtcMaxPort: number;
-      logLevel: string;
-      logTags: string[];
-    };
+      rtcMinPort: number
+      rtcMaxPort: number
+      logLevel: string
+      logTags: string[]
+    }
     router: {
-      mediaCodecs: RtpCodecCapability[];
-    };
+      mediaCodecs: RtpCodecCapability[]
+    }
     webRtcTransport: {
-      listenIps: TransportListenIp[];
-      maxIncomingBitrate: number;
-      initialAvailableOutgoingBitrate: number;
-    };
-  };
+      listenIps: TransportListenInfo[]
+      maxIncomingBitrate: number
+      initialAvailableOutgoingBitrate: number
+    }
+  }
 }
 
 const config: Config = {
@@ -99,13 +98,14 @@ const config: Config = {
       listenIps: [
         {
           ip: '0.0.0.0',
-          announcedIp: getLocalIp() // replace by public IP address
+          announcedIp: getLocalIp(), // replace by public IP address
+          protocol: 'udp'
         }
       ],
       maxIncomingBitrate: 1500000,
       initialAvailableOutgoingBitrate: 1000000
     }
   }
-};
+}
 
-export default config;
+export default config

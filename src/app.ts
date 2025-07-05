@@ -4,12 +4,12 @@ import express from 'express'
 import https from 'httpolyglot'
 import fs from 'fs'
 import * as mediasoup from 'mediasoup'
-import { Worker } from 'mediasoup/node/lib/Worker'
 import { Server as SocketIOServer } from 'socket.io'
 import path from 'path'
 import config from './config'
 import Room from './Room'
 import Peer from './Peer'
+import { Worker } from 'mediasoup/node/lib/types'
 
 const app = express()
 
@@ -277,7 +277,7 @@ function room(): any[] {
   return Object.values(roomList).map((r) => {
     return {
       router: r.router.id,
-      peers: Object.values(r.peers).map((p) => {
+      peers: Object.values(r.peers).map((p: any) => {
         return {
           name: p.name
         }
