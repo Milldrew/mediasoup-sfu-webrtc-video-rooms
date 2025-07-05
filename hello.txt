@@ -1,0 +1,3 @@
+src/app.ts:3:19 - error TS7016: Could not find a declaration file for module 'httpolyglot'. '/Users/andrew/da-webrtc/mediasoup-sfu-webrtc-video-rooms/node_modules/httpolyglot/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/httpolyglot` if it exists or add a new declaration (.d.ts) file containing `declare module 'httpolyglot';`
+
