@@ -292,8 +292,6 @@ function room(): any[] {
  */
 function getMediasoupWorker(): Worker {
   const worker = workers[nextMediasoupWorkerIdx]
-
   if (++nextMediasoupWorkerIdx === workers.length) nextMediasoupWorkerIdx = 0
-
   return worker
 }
