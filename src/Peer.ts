@@ -1,6 +1,7 @@
 // src/Peer.ts
 
 import { Transport, Producer, Consumer, DtlsParameters, RtpParameters, RtpCapabilities } from 'mediasoup/node/lib/types'
+import { SIMULCAST_SPATIAL_LAYER, SIMULCAST_TEMPORAL_LAYER, CONSUMER_PAUSED, EVENT_TRANSPORT_CLOSE_LEGACY } from './core.constants'
 export default class Peer {
   public id: string
   public name: string
@@ -37,7 +38,7 @@ export default class Peer {
 
     this.producers.set(producer.id, producer)
 
-    producer.on('transportclose', () => {
+    producer.on(EVENT_TRANSPORT_CLOSE_LEGACY, () => {
       console.log('Producer transport close', { name: `${this.name}`, consumer_id: `${producer.id}` })
       producer.close()
       this.producers.delete(producer.id)
@@ -72,7 +73,7 @@ export default class Peer {
       consumer = await consumerTransport.consume({
         producerId: producer_id,
         rtpCapabilities,
-        paused: false //producer.kind === 'video',
+        paused: CONSUMER_PAUSED //producer.kind === 'video',
       })
     } catch (error) {
       console.error('Consume failed', error)
@@ -81,14 +82,14 @@ export default class Peer {
 
     if (consumer.type === 'simulcast') {
       await consumer.setPreferredLayers({
-        spatialLayer: 2,
-        temporalLayer: 2
+        spatialLayer: SIMULCAST_SPATIAL_LAYER,
+        temporalLayer: SIMULCAST_TEMPORAL_LAYER
       })
     }
 
     this.consumers.set(consumer.id, consumer)
 
-    consumer.on('transportclose', () => {
+    consumer.on(EVENT_TRANSPORT_CLOSE_LEGACY, () => {
       console.log('Consumer transport close', { name: `${this.name}`, consumer_id: `${consumer.id}` })
       this.consumers.delete(consumer.id)
     })

@@ -10,6 +10,43 @@ import config from './config'
 import Room from './Room'
 import Peer from './Peer'
 import { Worker } from 'mediasoup/node/lib/types'
+import { 
+  SOCKET_EVENT_CONNECTION,
+  SOCKET_EVENT_CREATE_ROOM,
+  SOCKET_EVENT_JOIN,
+  SOCKET_EVENT_GET_PRODUCERS,
+  SOCKET_EVENT_GET_ROUTER_RTP_CAPABILITIES,
+  SOCKET_EVENT_CREATE_WEBRTC_TRANSPORT,
+  SOCKET_EVENT_CONNECT_TRANSPORT,
+  SOCKET_EVENT_PRODUCE,
+  SOCKET_EVENT_CONSUME,
+  SOCKET_EVENT_RESUME,
+  SOCKET_EVENT_GET_MY_ROOM_INFO,
+  SOCKET_EVENT_DISCONNECT,
+  SOCKET_EVENT_PRODUCER_CLOSED,
+  SOCKET_EVENT_EXIT_ROOM,
+  SOCKET_EVENT_NEW_PRODUCERS,
+  RESPONSE_ALREADY_EXISTS,
+  RESPONSE_SUCCESS,
+  RESPONSE_SUCCESSFULLY_EXITED_ROOM,
+  ERROR_ROOM_DOES_NOT_EXIST,
+  ERROR_NOT_IN_A_ROOM,
+  ERROR_NOT_CURRENTLY_IN_ROOM,
+  PROCESS_EXIT_DELAY,
+  LOG_CREATED_ROOM,
+  LOG_USER_JOINED,
+  LOG_GET_PRODUCERS,
+  LOG_GET_ROUTER_RTP_CAPABILITIES,
+  LOG_CREATE_WEBRTC_TRANSPORT,
+  LOG_CONNECT_TRANSPORT,
+  LOG_PRODUCE,
+  LOG_CONSUMING,
+  LOG_DISCONNECT,
+  LOG_PRODUCER_CLOSE,
+  LOG_EXIT_ROOM,
+  LOG_LISTENING_ON,
+  LOG_MEDIASOUP_WORKER_DIED
+} from './core.constants'
 
 const app = express()
 
@@ -24,7 +61,7 @@ const io = new SocketIOServer(httpsServer)
 app.use(express.static(path.join(__dirname, '..', 'public')))
 
 httpsServer.listen(config.listenPort, () => {
-  console.log('Listening on https://' + config.listenIp + ':' + config.listenPort)
+  console.log(LOG_LISTENING_ON + config.listenIp + ':' + config.listenPort)
 })
 
 // all mediasoup workers
@@ -67,8 +104,8 @@ async function createWorkers(): Promise<void> {
     })
 
     worker.on('died', () => {
-      console.error('mediasoup worker died, exiting in 2 seconds... [pid:%d]', worker.pid)
-      setTimeout(() => process.exit(1), 2000)
+      console.error(LOG_MEDIASOUP_WORKER_DIED, worker.pid)
+      setTimeout(() => process.exit(1), PROCESS_EXIT_DELAY)
     })
     workers.push(worker)
 
@@ -85,27 +122,27 @@ interface SocketWithRoomId extends SocketIOServer {
   room_id?: string
 }
 
-io.on('connection', (socket: any) => {
-  socket.on('createRoom', async ({ room_id }: { room_id: string }, callback: (result: string) => void) => {
+io.on(SOCKET_EVENT_CONNECTION, (socket: any) => {
+  socket.on(SOCKET_EVENT_CREATE_ROOM, async ({ room_id }: { room_id: string }, callback: (result: string) => void) => {
     if (roomList.has(room_id)) {
-      callback('already exists')
+      callback(RESPONSE_ALREADY_EXISTS)
     } else {
-      console.log('Created room', { room_id: room_id })
+      console.log(LOG_CREATED_ROOM, { room_id: room_id })
       const worker = await getMediasoupWorker()
       roomList.set(room_id, new Room(room_id, worker, io))
       callback(room_id)
     }
   })
 
-  socket.on('join', ({ room_id, name }: { room_id: string; name: string }, cb: (result: any) => void) => {
-    console.log('User joined', {
+  socket.on(SOCKET_EVENT_JOIN, ({ room_id, name }: { room_id: string; name: string }, cb: (result: any) => void) => {
+    console.log(LOG_USER_JOINED, {
       room_id: room_id,
       name: name
     })
 
     if (!roomList.has(room_id)) {
       return cb({
-        error: 'Room does not exist'
+        error: ERROR_ROOM_DOES_NOT_EXIST
       })
     }
 
@@ -115,18 +152,18 @@ io.on('connection', (socket: any) => {
     cb(roomList.get(room_id)!.toJson())
   })
 
-  socket.on('getProducers', () => {
+  socket.on(SOCKET_EVENT_GET_PRODUCERS, () => {
     if (!roomList.has(socket.room_id)) return
-    console.log('Get producers', { name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}` })
+    console.log(LOG_GET_PRODUCERS, { name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}` })
 
     // send all the current producer to newly joined member
     const producerList = roomList.get(socket.room_id)!.getProducerListForPeer()
 
-    socket.emit('newProducers', producerList)
+    socket.emit(SOCKET_EVENT_NEW_PRODUCERS, producerList)
   })
 
-  socket.on('getRouterRtpCapabilities', (_: any, callback: (result: any) => void) => {
-    console.log('Get RouterRtpCapabilities', {
+  socket.on(SOCKET_EVENT_GET_ROUTER_RTP_CAPABILITIES, (_: any, callback: (result: any) => void) => {
+    console.log(LOG_GET_ROUTER_RTP_CAPABILITIES, {
       name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`
     })
 
@@ -139,8 +176,8 @@ io.on('connection', (socket: any) => {
     }
   })
 
-  socket.on('createWebRtcTransport', async (_: any, callback: (result: any) => void) => {
-    console.log('Create webrtc transport', {
+  socket.on(SOCKET_EVENT_CREATE_WEBRTC_TRANSPORT, async (_: any, callback: (result: any) => void) => {
+    console.log(LOG_CREATE_WEBRTC_TRANSPORT, {
       name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`
     })
 
@@ -157,35 +194,35 @@ io.on('connection', (socket: any) => {
   })
 
   socket.on(
-    'connectTransport',
+    SOCKET_EVENT_CONNECT_TRANSPORT,
     async (
       { transport_id, dtlsParameters }: { transport_id: string; dtlsParameters: any },
       callback: (result: string) => void
     ) => {
-      console.log('Connect transport', { name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}` })
+      console.log(LOG_CONNECT_TRANSPORT, { name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}` })
 
       if (!roomList.has(socket.room_id)) return
       await roomList.get(socket.room_id)!.connectPeerTransport(socket.id, transport_id, dtlsParameters)
 
-      callback('success')
+      callback(RESPONSE_SUCCESS)
     }
   )
 
   socket.on(
-    'produce',
+    SOCKET_EVENT_PRODUCE,
     async (
       { kind, rtpParameters, producerTransportId }: { kind: string; rtpParameters: any; producerTransportId: string },
       callback: (result: any) => void
     ) => {
       if (!roomList.has(socket.room_id)) {
-        return callback({ error: 'not is a room' })
+        return callback({ error: ERROR_NOT_IN_A_ROOM })
       }
 
       const producer_id = await roomList
         .get(socket.room_id)!
         .produce(socket.id, producerTransportId, rtpParameters, kind)
 
-      console.log('Produce', {
+      console.log(LOG_PRODUCE, {
         type: `${kind}`,
         name: `${roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`,
         id: `${producer_id}`
@@ -198,7 +235,7 @@ io.on('connection', (socket: any) => {
   )
 
   socket.on(
-    'consume',
+    SOCKET_EVENT_CONSUME,
     async (
       {
         consumerTransportId,
@@ -212,7 +249,7 @@ io.on('connection', (socket: any) => {
         .get(socket.room_id)!
         .consume(socket.id, consumerTransportId, producerId, rtpCapabilities)
 
-      console.log('Consuming', {
+      console.log(LOG_CONSUMING, {
         name: `${roomList.get(socket.room_id) && roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`,
         producer_id: `${producerId}`,
         consumer_id: `${params.id}`
@@ -222,18 +259,18 @@ io.on('connection', (socket: any) => {
     }
   )
 
-  socket.on('resume', async (data: any, callback: () => void) => {
+  socket.on(SOCKET_EVENT_RESUME, async (data: any, callback: () => void) => {
     // Note: consumer is not defined in the original code, this might be a bug
     // await consumer.resume()
     callback()
   })
 
-  socket.on('getMyRoomInfo', (_: any, cb: (result: any) => void) => {
+  socket.on(SOCKET_EVENT_GET_MY_ROOM_INFO, (_: any, cb: (result: any) => void) => {
     cb(roomList.get(socket.room_id)!.toJson())
   })
 
-  socket.on('disconnect', () => {
-    console.log('Disconnect', {
+  socket.on(SOCKET_EVENT_DISCONNECT, () => {
+    console.log(LOG_DISCONNECT, {
       name: `${roomList.get(socket.room_id) && roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`
     })
 
@@ -241,22 +278,22 @@ io.on('connection', (socket: any) => {
     roomList.get(socket.room_id)!.removePeer(socket.id)
   })
 
-  socket.on('producerClosed', ({ producer_id }: { producer_id: string }) => {
-    console.log('Producer close', {
+  socket.on(SOCKET_EVENT_PRODUCER_CLOSED, ({ producer_id }: { producer_id: string }) => {
+    console.log(LOG_PRODUCER_CLOSE, {
       name: `${roomList.get(socket.room_id) && roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`
     })
 
     roomList.get(socket.room_id)!.closeProducer(socket.id, producer_id)
   })
 
-  socket.on('exitRoom', async (_: any, callback: (result: any) => void) => {
-    console.log('Exit room', {
+  socket.on(SOCKET_EVENT_EXIT_ROOM, async (_: any, callback: (result: any) => void) => {
+    console.log(LOG_EXIT_ROOM, {
       name: `${roomList.get(socket.room_id) && roomList.get(socket.room_id)!.getPeers().get(socket.id)?.name}`
     })
 
     if (!roomList.has(socket.room_id)) {
       callback({
-        error: 'not currently in a room'
+        error: ERROR_NOT_CURRENTLY_IN_ROOM
       })
       return
     }
@@ -268,7 +305,7 @@ io.on('connection', (socket: any) => {
 
     socket.room_id = null
 
-    callback('successfully exited room')
+    callback(RESPONSE_SUCCESSFULLY_EXITED_ROOM)
   })
 })
 

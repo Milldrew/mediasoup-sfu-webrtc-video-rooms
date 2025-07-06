@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from 'socket.io'
 import config from './config'
 import Peer from './Peer'
 import { AppData, Router, Worker, DtlsParameters, RtpParameters, RtpCapabilities } from 'mediasoup/node/lib/types'
+import { WEBRTC_ENABLE_UDP, WEBRTC_ENABLE_TCP, WEBRTC_PREFER_UDP, DTLS_STATE_CLOSED, EVENT_DTLS_STATE_CHANGE, EVENT_TRANSPORT_CLOSE, EVENT_PRODUCER_CLOSE, SOCKET_EVENT_NEW_PRODUCERS, SOCKET_EVENT_CONSUMER_CLOSED, LOG_TRANSPORT_CLOSE, LOG_ADDING_TRANSPORT, LOG_CONSUMER_CLOSED_DUE_TO_PRODUCER_CLOSE, ERROR_CAN_NOT_CONSUME } from './core.constants'
 
 export default class Room {
   public id: string
@@ -58,9 +59,9 @@ export default class Room {
 
     const transport = await this.router.createWebRtcTransport({
       listenIps: config.mediasoup.webRtcTransport.listenIps,
-      enableUdp: true,
-      enableTcp: true,
-      preferUdp: true,
+      enableUdp: WEBRTC_ENABLE_UDP,
+      enableTcp: WEBRTC_ENABLE_TCP,
+      preferUdp: WEBRTC_PREFER_UDP,
       initialAvailableOutgoingBitrate
     })
 
@@ -70,18 +71,18 @@ export default class Room {
       } catch (error) {}
     }
 
-    transport.on('dtlsstatechange', (dtlsState) => {
-      if (dtlsState === 'closed') {
-        console.log('Transport close', { name: this.peers.get(socket_id)?.name })
+    transport.on(EVENT_DTLS_STATE_CHANGE, (dtlsState) => {
+      if (dtlsState === DTLS_STATE_CLOSED) {
+        console.log(LOG_TRANSPORT_CLOSE, { name: this.peers.get(socket_id)?.name })
         transport.close()
       }
     })
 
-    transport.on('@close', () => {
-      console.log('Transport close', { name: this.peers.get(socket_id)?.name })
+    transport.on(EVENT_TRANSPORT_CLOSE, () => {
+      console.log(LOG_TRANSPORT_CLOSE, { name: this.peers.get(socket_id)?.name })
     })
 
-    console.log('Adding transport', { transportId: transport.id })
+    console.log(LOG_ADDING_TRANSPORT, { transportId: transport.id })
     this.peers.get(socket_id)?.addTransport(transport)
     return {
       params: {
@@ -108,7 +109,7 @@ export default class Room {
     return new Promise(async (resolve, reject) => {
       const producer = await this.peers.get(socket_id)!.createProducer(producerTransportId, rtpParameters, kind)
       resolve(producer.id)
-      this.broadCast(socket_id, 'newProducers', [
+      this.broadCast(socket_id, SOCKET_EVENT_NEW_PRODUCERS, [
         {
           producer_id: producer.id,
           producer_socket_id: socket_id
@@ -130,7 +131,7 @@ export default class Room {
         rtpCapabilities
       })
     ) {
-      console.error('can not consume')
+      console.error(ERROR_CAN_NOT_CONSUME)
       return
     }
 
@@ -140,14 +141,14 @@ export default class Room {
 
     const { consumer, params } = result
 
-    consumer.on('producerclose', () => {
-      console.log('Consumer closed due to producerclose event', {
+    consumer.on(EVENT_PRODUCER_CLOSE, () => {
+      console.log(LOG_CONSUMER_CLOSED_DUE_TO_PRODUCER_CLOSE, {
         name: `${this.peers.get(socket_id)?.name}`,
         consumer_id: `${consumer.id}`
       })
       this.peers.get(socket_id)?.removeConsumer(consumer.id)
       // tell client consumer is dead
-      this.io.to(socket_id).emit('consumerClosed', {
+      this.io.to(socket_id).emit(SOCKET_EVENT_CONSUMER_CLOSED, {
         consumer_id: consumer.id
       })
     })

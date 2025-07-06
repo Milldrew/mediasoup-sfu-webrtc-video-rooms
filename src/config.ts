@@ -1,18 +1,19 @@
 // src/config.ts
 import * as os from 'os'
 import { TransportListenInfo, RtpCodecCapability } from 'mediasoup/node/lib/types'
+import { DEFAULT_LOCALHOST_IP, IPV4_FAMILY } from './core.constants'
 
 const ifaces = os.networkInterfaces()
 
 const getLocalIp = (): string => {
-  let localIp = '127.0.0.1'
+  let localIp = DEFAULT_LOCALHOST_IP
   Object.keys(ifaces).forEach((ifname) => {
     const ifaceList = ifaces[ifname]
     if (!ifaceList) return
 
     for (const iface of ifaceList) {
       // Ignore IPv6 and 127.0.0.1
-      if (iface.family !== 'IPv4' || iface.internal !== false) {
+      if (iface.family !== IPV4_FAMILY || iface.internal !== false) {
         continue
       }
       // Set the local ip to the first IPv4 address found and exit the loop
